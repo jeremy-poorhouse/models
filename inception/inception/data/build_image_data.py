@@ -385,7 +385,7 @@ def _find_image_files(data_dir, labels_file):
   # Shuffle the ordering of all image files in order to guarantee
   # random ordering of the images with respect to label in the
   # saved TFRecord files. Make the randomization repeatable.
-  shuffled_index = range(len(filenames))
+  shuffled_index = list(range(len(filenames)))
   random.seed(12345)
   random.shuffle(shuffled_index)
 
