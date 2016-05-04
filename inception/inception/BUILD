@@ -90,6 +90,17 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "distracted_eval",
+    srcs = [
+        "distracted_eval.py",
+    ],
+    deps = [
+        ":distracted_data",
+        ":inception_eval",
+    ],
+)
+
 py_library(
     name = "inception_eval",
     srcs = [
