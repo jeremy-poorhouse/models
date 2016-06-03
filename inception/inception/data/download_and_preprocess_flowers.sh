@@ -32,6 +32,8 @@
 #
 # usage:
 #  ./download_and_preprocess_flowers.sh [data-dir]
+export DYLD_LIBRARY_PATH=/usr/local/cuda/lib
+
 set -e
 
 if [ -z "$1" ]; then
@@ -79,7 +81,7 @@ while read LABEL; do
 
   # Move the first randomly selected 100 images to the validation set.
   mkdir -p "${VALIDATION_DIR_FOR_LABEL}"
-  VALIDATION_IMAGES=$(ls -1 "${TRAIN_DIR_FOR_LABEL}" | shuf | head -100)
+  VALIDATION_IMAGES=$(ls -1 "${TRAIN_DIR_FOR_LABEL}" | gshuf | head -100)
   for IMAGE in ${VALIDATION_IMAGES}; do
     mv -f "${TRAIN_DIRECTORY}${LABEL}/${IMAGE}" "${VALIDATION_DIR_FOR_LABEL}"
   done
