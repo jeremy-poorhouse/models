@@ -38,6 +38,8 @@ tf.app.flags.DEFINE_string('data_dir', '/tmp/mydata',
                            """Path to the processed data, i.e. """
                            """TFRecord of Example protos.""")
 
+tf.app.flags.DEFINE_string('examples', '1023',
+                           """Number of examples""")
 
 class Dataset(object):
   """A simple class for handling data sets."""

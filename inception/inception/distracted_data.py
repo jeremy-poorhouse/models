@@ -26,8 +26,10 @@ from inception.dataset import Dataset
 class DistractedData(Dataset):
   """Distracted data set."""
 
-  def __init__(self, subset):
+  def __init__(self, subset, examples):
     super(DistractedData, self).__init__('Distracted', subset)
+    self.examples = {}
+    self.examples[subset] = examples
 
   def num_classes(self):
     """Returns the number of classes in the data set."""
@@ -35,10 +37,8 @@ class DistractedData(Dataset):
 
   def num_examples_per_epoch(self):
     """Returns the number of examples in the data subset."""
-    if self.subset == 'train':
-      return 16814
-    if self.subset == 'validation':
-      return 5610
+
+    return self.examples[self.subset]
 
   def download_message(self):
     """Instruction to download and extract the tarball from Distracted website."""

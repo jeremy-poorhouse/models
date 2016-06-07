@@ -29,7 +29,7 @@ FLAGS = tf.app.flags.FLAGS
 
 
 def main(_):
-  dataset = DistractedData(subset=FLAGS.subset)
+  dataset = DistractedData(subset=FLAGS.subset, examples=int(FLAGS.examples))
   assert dataset.data_files()
   if tf.gfile.Exists(FLAGS.train_dir):
     tf.gfile.DeleteRecursively(FLAGS.train_dir)
