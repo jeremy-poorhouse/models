@@ -235,7 +235,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
         bounding_boxes=bbox,
         min_object_covered=0.1,
         aspect_ratio_range=[0.75, 1.33],
-        area_range=[0.05, 1.0],
+        area_range=[0.75, 1.0],
         max_attempts=100,
         use_image_if_no_bounding_boxes=True)
     bbox_begin, bbox_size, distort_bbox = sample_distorted_bounding_box
@@ -263,7 +263,7 @@ def distort_image(image, height, width, bbox, thread_id=0, scope=None):
                        tf.expand_dims(distorted_image, 0))
 
     # Randomly flip the image horizontally.
-    distorted_image = tf.image.random_flip_left_right(distorted_image)
+    #distorted_image = tf.image.random_flip_left_right(distorted_image)
 
     # Randomly distort the colors.
     distorted_image = distort_color(distorted_image, thread_id)
