@@ -149,7 +149,6 @@ def _convert_to_example(filename, image_buffer, label, text, height, width):
       'image/filename': _bytes_feature(os.path.basename(filename)),
       'image/encoded': _bytes_feature(image_buffer)}))
 
-  print(os.path.basename(filename))
   return example
 
 
