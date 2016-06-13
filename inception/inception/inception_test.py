@@ -22,6 +22,7 @@ from datetime import datetime
 import math
 import os.path
 import time
+import csv, zipfile
 
 
 import numpy as np
@@ -33,33 +34,25 @@ from inception import inception_model as inception
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('eval_dir', '/tmp/imagenet_eval',
+tf.app.flags.DEFINE_string('test_dir', '/tmp/imagenet_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('checkpoint_dir', '/tmp/imagenet_train',
                            """Directory where to read model checkpoints.""")
-
-# Flags governing the frequency of the eval.
-tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
-                            """How often to run the eval.""")
-tf.app.flags.DEFINE_boolean('run_once', False,
-                            """Whether to run eval only once.""")
 
 # Flags governing the data used for the eval.
 tf.app.flags.DEFINE_integer('num_examples', 50000,
                             """Number of examples to run. Note that the eval """
                             """ImageNet dataset contains 50000 examples.""")
-tf.app.flags.DEFINE_string('subset', 'validation',
+tf.app.flags.DEFINE_string('subset', 'test',
                            """Either 'validation' or 'train'.""")
 
 
-def _eval_once(saver, summary_writer, top_1_op, top_5_op, summary_op):
-  """Runs Eval once.
+def _test(saver, filenames, output):
+  """Runs test once.
 
   Args:
     saver: Saver.
     summary_writer: Summary writer.
-    top_1_op: Top 1 op.
-    top_5_op: Top 5 op.
     summary_op: Summary op.
   """
   with tf.Session() as sess:
@@ -92,18 +85,16 @@ def _eval_once(saver, summary_writer, top_1_op, top_5_op, summary_op):
                                          start=True))
 
       num_iter = int(math.ceil(FLAGS.num_examples / FLAGS.batch_size))
-      # Counts the number of correct predictions.
-      count_top_1 = 0.0
-      count_top_5 = 0.0
-      total_sample_count = num_iter * FLAGS.batch_size
       step = 0
 
-      print('%s: starting evaluation on (%s).' % (datetime.now(), FLAGS.subset))
+      results = []
+
+      print('%s: starting testing on (%s).' % (datetime.now(), FLAGS.subset))
       start_time = time.time()
       while step < num_iter and not coord.should_stop():
-        top_1, top_5 = sess.run([top_1_op, top_5_op])
-        count_top_1 += np.sum(top_1)
-        count_top_5 += np.sum(top_5)
+        predictions, filenames_eval = sess.run([output, filenames])
+        results.append(zip(filenames_eval, predictions))
+
         step += 1
         if step % 20 == 0:
           duration = time.time() - start_time
@@ -114,17 +105,8 @@ def _eval_once(saver, summary_writer, top_1_op, top_5_op, summary_op):
                                 examples_per_sec, sec_per_batch))
           start_time = time.time()
 
-      # Compute precision @ 1.
-      precision_at_1 = count_top_1 / total_sample_count
-      recall_at_5 = count_top_5 / total_sample_count
-      print('%s: precision @ 1 = %.4f recall @ 5 = %.4f [%d examples]' %
-            (datetime.now(), precision_at_1, recall_at_5, total_sample_count))
-
-      summary = tf.Summary()
-      summary.ParseFromString(sess.run(summary_op))
-      summary.value.add(tag='Precision @ 1', simple_value=precision_at_1)
-      summary.value.add(tag='Recall @ 5', simple_value=recall_at_5)
-      summary_writer.add_summary(summary, global_step)
+      print('%s: done [%d examples]' %
+            (datetime.now(), FLAGS.num_examples))
 
     except Exception as e:  # pylint: disable=broad-except
       coord.request_stop(e)
@@ -132,12 +114,16 @@ def _eval_once(saver, summary_writer, top_1_op, top_5_op, summary_op):
     coord.request_stop()
     coord.join(threads, stop_grace_period_secs=10)
 
+    # fix length of results.
+    results = results[0:(FLAGS.num_examples-1)]
+    return results
 
-def evaluate(dataset):
+
+def test(dataset):
   """Evaluate model on Dataset for a number of steps."""
   with tf.Graph().as_default():
     # Get images and labels from the dataset.
-    images, labels, _ = image_processing.inputs(dataset)
+    images, _, filenames = image_processing.inputs(dataset)
 
     # Number of classes in the Dataset label set plus 1.
     # Label 0 is reserved for an (unused) background class.
@@ -147,9 +133,7 @@ def evaluate(dataset):
     # inference model.
     logits, _ = inception.inference(images, num_classes)
 
-    # Calculate predictions.
-    top_1_op = tf.nn.in_top_k(logits, labels, 1)
-    top_5_op = tf.nn.in_top_k(logits, labels, 5)
+    output = tf.nn.softmax(tf.slice(logits, [0,1], [-1,-1]), name='output')
 
     # Restore the moving average version of the learned variables for eval.
     variable_averages = tf.train.ExponentialMovingAverage(
@@ -157,15 +141,22 @@ def evaluate(dataset):
     variables_to_restore = variable_averages.variables_to_restore()
     saver = tf.train.Saver(variables_to_restore)
 
-    # Build the summary operation based on the TF collection of Summaries.
-    summary_op = tf.merge_all_summaries()
 
-    graph_def = tf.get_default_graph().as_graph_def()
-    summary_writer = tf.train.SummaryWriter(FLAGS.eval_dir,
-                                            graph_def=graph_def)
+    results = _test(saver, filenames, output)
 
-    while True:
-      _eval_once(saver, summary_writer, top_1_op, top_5_op, summary_op)
-      if FLAGS.run_once:
-        break
-      time.sleep(FLAGS.eval_interval_secs)
+    current_time = datetime.now()
+    csvfilename = os.path.join(FLAGS.test_dir, 'submission-{}-.csv'.format(current_time))
+    zipfilename = os.path.join(FLAGS.test_dir, '{}.zip'.format(csvfilename))
+
+    with open(csvfilename, 'wb') as csvfile:
+      writer = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+      writer.writerow(['img', 'c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'])
+      for batch_result in results:
+        for filename, result in batch_result:
+          writer.writerow([filename] + result.tolist())
+
+    with ZipFile(zipfilename, 'w') as myzip:
+      myzip.write(csvfilename)
+
+    print('Submission available at: %s' % (zipfilename))
+

@@ -179,6 +179,28 @@ py_library(
 )
 
 py_binary(
+    name = "distracted_test",
+    srcs = [
+        "distracted_test.py",
+    ],
+    deps = [
+        ":distracted_data",
+        ":inception_test",
+    ],
+)
+
+py_library(
+    name = "inception_test",
+    srcs = [
+        "inception_test.py",
+    ],
+    deps = [
+        ":image_processing",
+        ":inception",
+    ],
+)
+
+py_binary(
     name = "build_image_data",
     srcs = ["data/build_image_data.py"],
 )

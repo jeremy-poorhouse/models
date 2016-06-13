@@ -80,6 +80,8 @@ tf.app.flags.DEFINE_string('train_directory', '/tmp/',
                            'Training data directory')
 tf.app.flags.DEFINE_string('validation_directory', '/tmp/',
                            'Validation data directory')
+tf.app.flags.DEFINE_string('test_directory', '/tmp/',
+                           'Test data directory')
 tf.app.flags.DEFINE_string('output_directory', '/tmp/',
                            'Output data directory')
 
@@ -87,6 +89,8 @@ tf.app.flags.DEFINE_integer('train_shards', 2,
                             'Number of shards in training TFRecord files.')
 tf.app.flags.DEFINE_integer('validation_shards', 2,
                             'Number of shards in validation TFRecord files.')
+tf.app.flags.DEFINE_integer('test_shards', 2,
+                            'Number of shards in test TFRecord files.')
 
 tf.app.flags.DEFINE_integer('num_threads', 2,
                             'Number of threads to preprocess the images.')
@@ -144,6 +148,8 @@ def _convert_to_example(filename, image_buffer, label, text, height, width):
       'image/format': _bytes_feature(image_format),
       'image/filename': _bytes_feature(os.path.basename(filename)),
       'image/encoded': _bytes_feature(image_buffer)}))
+
+  print(os.path.basename(filename))
   return example
 
 
@@ -397,6 +403,32 @@ def _find_image_files(data_dir, labels_file):
         (len(filenames), len(unique_labels), data_dir))
   return filenames, texts, labels
 
+def _find_image_files_test(data_dir):
+  """Build a list of all images files in the data set.
+
+  Args:
+    data_dir: string, path to the root directory of images.
+
+      Assumes that the image data set resides in JPEG files located in
+      the following directory structure.
+
+        data_dir/another-image.JPEG
+        data_dir/my-image.jpg
+
+  Returns:
+    filenames: list of strings; each string is a path to an image file.
+  """
+  print('Determining list of input files from %s.' % data_dir)
+  filenames = []
+
+  jpeg_file_path = '%s/*' % (data_dir)
+  matching_files = tf.gfile.Glob(jpeg_file_path)
+
+  filenames.extend(matching_files)
+
+  print('Found %d JPEG files across inside %s.' %
+        (len(filenames), data_dir))
+  return filenames
 
 def _process_dataset(name, directory, num_shards, labels_file):
   """Process a complete data set and save it as a TFRecord.
@@ -410,6 +442,18 @@ def _process_dataset(name, directory, num_shards, labels_file):
   filenames, texts, labels = _find_image_files(directory, labels_file)
   _process_image_files(name, filenames, texts, labels, num_shards)
 
+def _process_dataset_test(name, directory, num_shards):
+  """Process a complete data set and save it as a TFRecord.
+
+  Args:
+    name: string, unique identifier specifying the data set.
+    directory: string, root path to the data set.
+    num_shards: integer number of shards for this data set.
+  """
+  filenames = _find_image_files_test(directory)
+  texts = [""] * len(filenames)
+  labels = [0] * len(filenames)
+  _process_image_files(name, filenames, texts, labels, num_shards)
 
 def main(unused_argv):
   assert not FLAGS.train_shards % FLAGS.num_threads, (
@@ -417,6 +461,8 @@ def main(unused_argv):
   assert not FLAGS.validation_shards % FLAGS.num_threads, (
       'Please make the FLAGS.num_threads commensurate with '
       'FLAGS.validation_shards')
+  assert not FLAGS.test_shards % FLAGS.num_threads, (
+      'Please make the FLAGS.num_threads commensurate with FLAGS.test_shards')
   print('Saving results to %s' % FLAGS.output_directory)
 
   # Run it!
@@ -424,6 +470,8 @@ def main(unused_argv):
                    FLAGS.validation_shards, FLAGS.labels_file)
   _process_dataset('train', FLAGS.train_directory,
                    FLAGS.train_shards, FLAGS.labels_file)
+  _process_dataset_test('test', FLAGS.test_directory,
+                   FLAGS.test_shards)
 
 
 if __name__ == '__main__':
