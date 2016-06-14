@@ -88,12 +88,15 @@ def _test(saver, filenames, output):
       step = 0
 
       results = []
-
       print('%s: starting testing on (%s).' % (datetime.now(), FLAGS.subset))
       start_time = time.time()
       while step < num_iter and not coord.should_stop():
         predictions, filenames_eval = sess.run([output, filenames])
-        results.append(zip(filenames_eval, predictions))
+        remainder = FLAGS.num_examples - step * FLAGS.batch_size
+        if remainder < FLAGS.batch_size:
+          results.append(zip(filenames_eval[0:remainder], predictions[0:remainder]))
+        else:
+          results.append(zip(filenames_eval, predictions))
 
         step += 1
         if step % 20 == 0:
@@ -114,8 +117,6 @@ def _test(saver, filenames, output):
     coord.request_stop()
     coord.join(threads, stop_grace_period_secs=10)
 
-    # fix length of results.
-    results = results[0:(FLAGS.num_examples-1)]
     return results
 
 
@@ -144,8 +145,8 @@ def test(dataset):
 
     results = _test(saver, filenames, output)
 
-    current_time = datetime.now()
-    csvfilename = os.path.join(FLAGS.test_dir, 'submission-{}-.csv'.format(current_time))
+    current_time = datetime.now().strftime('%Y-%m-%d-%Hh%Mm%Ss')
+    csvfilename = os.path.join(FLAGS.test_dir, 'submission-{}.csv'.format(current_time))
     zipfilename = os.path.join(FLAGS.test_dir, '{}.zip'.format(csvfilename))
 
     with open(csvfilename, 'wb') as csvfile:
@@ -155,7 +156,7 @@ def test(dataset):
         for filename, result in batch_result:
           writer.writerow([filename] + result.tolist())
 
-    with ZipFile(zipfilename, 'w') as myzip:
+    with zipfile.ZipFile(zipfilename, 'w') as myzip:
       myzip.write(csvfilename)
 
     print('Submission available at: %s' % (zipfilename))
