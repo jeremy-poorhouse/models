@@ -68,6 +68,28 @@ py_library(
     ],
 )
 
+py_library(
+    name = "vgg",
+    srcs = [
+        "vgg_model.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":dataset",
+        "//inception/slim",
+    ],
+)
+
+py_library(
+    name = "flags_train",
+    srcs = [
+        "flags_train.py",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+    ],
+)
+
 py_binary(
     name = "imagenet_eval",
     srcs = [
@@ -153,6 +175,7 @@ py_binary(
     deps = [
         ":distracted_data",
         ":inception_train",
+        ":vgg_train",
     ],
 )
 
@@ -164,6 +187,19 @@ py_library(
     deps = [
         ":image_processing",
         ":inception",
+        ":flags_train",
+    ],
+)
+
+py_library(
+    name = "vgg_train",
+    srcs = [
+        "vgg_train.py",
+    ],
+    deps = [
+        ":image_processing",
+        ":vgg",
+        ":flags_train",
     ],
 )
 

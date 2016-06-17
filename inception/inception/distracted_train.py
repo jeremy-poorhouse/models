@@ -23,10 +23,13 @@ from __future__ import print_function
 import tensorflow as tf
 
 from inception import inception_train
+from inception import vgg_train
 from inception.distracted_data import DistractedData
 
 FLAGS = tf.app.flags.FLAGS
 
+tf.app.flags.DEFINE_string('model', '',
+                           """vgg or inception""")
 
 def main(_):
   dataset = DistractedData(subset=FLAGS.subset, examples=int(FLAGS.examples))
@@ -34,8 +37,13 @@ def main(_):
   if tf.gfile.Exists(FLAGS.train_dir):
     tf.gfile.DeleteRecursively(FLAGS.train_dir)
   tf.gfile.MakeDirs(FLAGS.train_dir)
-  inception_train.train(dataset)
 
+  if FLAGS.model == 'inception':
+  	inception_train.train(dataset)
+  elif FLAGS.model == 'vgg':
+  	vgg_train.train(dataset)
+  else:
+  	assert False, "%s model not defined" % (FLAGS.model)
 
 if __name__ == '__main__':
   tf.app.run()
